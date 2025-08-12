@@ -33,22 +33,45 @@ int iterationLoop(int sockfd){
   size_t cmdLen = 0; //size of the effective element in the "cmd" Buffer
   
   while(!end){//watching the END flag
-    bRead = read(sockfd,chunk,BUFFLEN);//recieving command
-    if(bRead == 0){//if nothing is read : error
-      perror("Nothing was recieved\n");
-      out+=1;
-      goto _GracefullEnd;
+    bRead = read(sockfd, chunk, BUFFLEN);
+    if (bRead <= 0) {
+        fprintf(stderr, "Nothing was received\n");
+        out += 1;
+        goto _GracefullEnd;
     }
-    if(strcmp(chunk,"STOP\n")==0){//if the stop signal is recieved
-      end+=1;
+
+    if (bRead == 5 && strncmp(chunk, "STOP\n", 5) == 0) {
+        end = 1;
+        continue;
     }
-    memcpy(cmd,chunk,bRead);//putting the first chunk in the cmd buffer
-    while(checkEnd(chunk,bRead)){ //fix me : need to properly reallocate the buffer if the command is bigger than the buffer size
-      printf("wee need to fill the buffer\n"); 
-      break;
+
+    memcpy(cmd, chunk, bRead);
+    cmdLen = bRead;
+
+    while (checkEnd(cmd, cmdLen)) {
+        bRead = read(sockfd, chunk, BUFFLEN);
+        if (bRead <= 0) {
+            perror("Read error or connection closed");
+            out += 1;
+            goto _GracefullEnd;
+        }
+
+        char *new_cmd = realloc(cmd, cmdLen + bRead);
+        if (!new_cmd) {
+            perror("realloc failed");
+            out += 1;
+            goto _GracefullEnd;
+        }
+        cmd = new_cmd;
+
+        memcpy(cmd + cmdLen, chunk, bRead);
+        cmdLen += bRead;
     }
-    printf("%s <- cmd\n",cmd); //printing the recieved element
-    memset(cmd,'\0',BUFFLEN); //reseting the memory to avoid overlap;
+
+    printf("cmd -> %.*s\n", (int)cmdLen, cmd);
+    printf("cmdLen -> %d\n", cmdLen);
+    cmdLen = 0; // prêt pour la commande suivante
+
   }
   printf("Client has been Gracefully ShutDown\n");
 
