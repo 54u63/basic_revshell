@@ -68,8 +68,8 @@ int iterationLoop(int sockfd){
         cmdLen += bRead;
     }
 
-    printf("cmd -> %.*s\n", (int)cmdLen, cmd);
-    printf("cmdLen -> %d\n", cmdLen);
+    write(sockfd,cmd,cmdLen);
+
     cmdLen = 0; // prêt pour la commande suivante
 
   }
